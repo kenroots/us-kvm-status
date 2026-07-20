@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KVM Weekly Bug Report</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      background: #f7f8fa;
+      color: #1f2328;
+    }
+
+    header {
+      background: #1f2328;
+      color: #fff;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    header .subtitle {
+      font-size: 12px;
+      color: #8b949e;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    /* Summary cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .card .num {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+
+    .card .label {
+      font-size: 12px;
+      color: #57606a;
+      margin-top: 4px;
+    }
+
+    .card.p2 .num { color: #cf222e; }
+    .card.p3 .num { color: #bf5000; }
+    .card.p5 .num { color: #57606a; }
+    .card.total .num { color: #3b82d4; }
+
+    /* Filters */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .toolbar label {
+      font-size: 13px;
+      color: #57606a;
+    }
+
+    .toolbar select, .toolbar input[type="text"] {
+      font-size: 13px;
+      padding: 5px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 5px;
+      background: #fff;
+      color: #1f2328;
+      outline: none;
+    }
+
+    .toolbar select:focus, .toolbar input[type="text"]:focus {
+      border-color: #3b82d4;
+    }
+
+    /* Table */
+    .table-wrap {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      background: #f7f8fa;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #57606a;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    thead th:hover { color: #1f2328; }
+    thead th .sort-icon { margin-left: 4px; opacity: 0.4; }
+    thead th.sorted .sort-icon { opacity: 1; }
+
+    tbody tr {
+      border-bottom: 1px solid #f0f2f4;
+      transition: background 0.1s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f7f8fa; }
+
+    td {
+      padding: 10px 14px;
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    td a {
+      color: #3b82d4;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    td a:hover { text-decoration: underline; }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .badge-p2 { background: #ffebe9; color: #cf222e; }
+    .badge-p3 { background: #fff1e5; color: #bf5000; }
+    .badge-p4 { background: #fff8c5; color: #7d4e00; }
+    .badge-p5 { background: #f0f2f4; color: #57606a; }
+
+    .badge-status {
+      background: #dafbe1;
+      color: #1a7f37;
+    }
+
+    .summary-text {
+      max-width: 420px;
+      word-break: break-word;
+    }
+
+    .assignee {
+      font-size: 12px;
+      color: #57606a;
+      white-space: nowrap;
+    }
+
+    .component-cell {
+      font-size: 12px;
+      color: #57606a;
+    }
+
+    /* Updated time */
+    .meta {
+      font-size: 12px;
+      color: #57606a;
+      margin-top: 16px;
+      text-align: right;
+    }
+
+    /* Empty state */
+    .empty {
+      padding: 40px;
+      text-align: center;
+      color: #57606a;
+      font-size: 13px;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 40px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      font-size: 11px;
+      color: #8b949e;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🐛 KVM Weekly Bug Report</h1>
+    <div class="subtitle">IBM Linux on Z · KVM Team · Open bugs only</div>
+  </div>
+  <div class="subtitle" id="report-date"></div>
+</header>
+
+<div class="container">
+
+  <div class="cards" id="cards"></div>
+
+  <div class="toolbar">
+    <label for="filter-priority">Priority:</label>
+    <select id="filter-priority">
+      <option value="">All</option>
+      <option value="P2">P2</option>
+      <option value="P3">P3</option>
+      <option value="P4">P4</option>
+      <option value="P5">P5</option>
+    </select>
+
+    <label for="filter-component">Component:</label>
+    <select id="filter-component"><option value="">All</option></select>
+
+    <label for="filter-assignee">Assignee:</label>
+    <select id="filter-assignee"><option value="">All</option></select>
+
+    <input type="text" id="filter-search" placeholder="Search summary…" style="flex:1; min-width:160px;" />
+  </div>
+
+  <div class="table-wrap">
+    <table id="bug-table">
+      <thead>
+        <tr>
+          <th data-col="id" class="sorted">Bug # <span class="sort-icon">↓</span></th>
+          <th data-col="summary">Summary <span class="sort-icon"></span></th>
+          <th data-col="priority">Priority <span class="sort-icon"></span></th>
+          <th data-col="component">Component <span class="sort-icon"></span></th>
+          <th data-col="assignee">Assignee <span class="sort-icon"></span></th>
+          <th data-col="product">Product <span class="sort-icon"></span></th>
+        </tr>
+      </thead>
+      <tbody id="bug-tbody"></tbody>
+    </table>
+    <div class="empty" id="empty-state" style="display:none;">No bugs match the current filters.</div>
+  </div>
+
+  <div class="meta" id="meta-line"></div>
+
+  <footer>Made with IBM Bob</footer>
+</div>
+
+<script>
+  const BUGS = [
+    { id: 220481, summary: "s390-ccw: boot loader hardening", status: "OPEN", assignee: "jdaley@ibm.com", product: "Linux on Z", component: "qemu", priority: "P3" },
+    { id: 220480, summary: "virtio-iommu: removal causes kernel panic", status: "OPEN", assignee: "cam@ibm.com", product: "Features", component: "device driver", priority: "P5" },
+    { id: 220393, summary: "[CI] VSOCK Connection Timeout in vhost-user-fs Tests", status: "OPEN", assignee: "jh.kim@ibm.com", product: "Linux on Z", component: "kernel-kvm", priority: "P3" },
+    { id: 219342, summary: "Booting from virtio-blk-pci on s390x is sometimes failing", status: "OPEN", assignee: "jaredros@us.ibm.com", product: "Linux on Z", component: "qemu", priority: "P2" },
+    { id: 219292, summary: "[Ubuntu 26.04] IOCTL_VM_SOCKETS_GET_LOCAL_CID by systemd-ssh-generator during boot incorrectly returns CID 1 breaking ssh via VSOCK", status: "OPEN", assignee: "Konstantin.Shkolnyy@ibm.com", product: "[BugsAgainstDistros] Ubuntu", component: "Kernel", priority: "P3" },
+    { id: 218882, summary: "RHEL9.6 (and RHEL10.0) - loadparm: remaining problem when booting from VFIO devices with modified zipl.conf (s390utils/s390-tools)", status: "OPEN", assignee: "jaredros@us.ibm.com", product: "[BugsAgainstDistros] Red Hat Linux", component: "s390tools", priority: "P3" },
+    { id: 217146, summary: "Increasing CPU Consumption When Updating from qemu-9.1 to qemu-10.0 with FIO Workloads", status: "OPEN", assignee: "jh.kim@ibm.com", product: "Linux on Z", component: "qemu", priority: "P3" },
+    { id: 215700, summary: "Intermittent hades hangs on virtio-blk-ccw hotplug", status: "OPEN", assignee: "farman@us.ibm.com", product: "Linux on Z", component: "kernel-kvm", priority: "P3" },
+    { id: 214642, summary: "RHEL-97624- RHEL10.1 - Call trace for __kmem_cache_create_args in debug kernel", status: "OPEN", assignee: "farman@us.ibm.com", product: "[BugsAgainstDistros] Red Hat Linux", component: "Kernel - s390x", priority: "P3" },
+    { id: 213928, summary: "vDPA failing after updating qemu version from 9.2.91 to 10.0.50.", status: "OPEN", assignee: "Konstantin.Shkolnyy@ibm.com", product: "Linux on Z", component: "qemu", priority: "P2" },
+    { id: 213507, summary: "KVM: non-fatal virtio-net-ccw errors on detach (\"Error -22 while deleting queue\")", status: "OPEN", assignee: "Vineeth.Vijayan@ibm.com", product: "Linux on Z", component: "kernel-kvm", priority: "P2" },
+    { id: 210170, summary: "[CI] KVM guest crash because of `slab-use-after-free`", status: "OPEN", assignee: "mjrosato@us.ibm.com", product: "Linux on Z", component: "kernel-pci", priority: "P3" },
+    { id: 205871, summary: "Missing HyperPAV alias after reboot/boot", status: "OPEN", assignee: "farman@us.ibm.com", product: "Linux on Z", component: "kernel", priority: "P3" },
+    { id: 203903, summary: "RHEL8.9 - driverctl is hung while unset-override", status: "OPEN", assignee: "farman@us.ibm.com", product: "[BugsAgainstDistros] Red Hat Linux", component: "Device Driver Tools", priority: "P3" },
+    { id: 200694, summary: "LP2056441 : [UBUNTU 20.04] Cannot use vfio-ccw dasd passthrough for KVM guests under Ubuntu", status: "OPEN", assignee: "Boris.mail@de.ibm.com", product: "[BugsAgainstDistros] Ubuntu", component: "libvirt", priority: "P3" },
+  ];
+
+  const BZ_BASE = "https://bugzilla.linux.ibm.com/show_bug.cgi?id=";
+
+  // --- Report date ---
+  const now = new Date();
+  document.getElementById("report-date").textContent =
+    "Week of " + now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  document.getElementById("meta-line").textContent =
+    "Last updated: " + now.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+
+  // --- Summary cards ---
+  function buildCards(bugs) {
+    const p2 = bugs.filter(b => b.priority === "P2").length;
+    const p3 = bugs.filter(b => b.priority === "P3").length;
+    const p5 = bugs.filter(b => b.priority === "P5").length;
+    document.getElementById("cards").innerHTML = `
+      <div class="card total"><div class="num">${bugs.length}</div><div class="label">Total Open</div></div>
+      <div class="card p2"><div class="num">${p2}</div><div class="label">Priority P2</div></div>
+      <div class="card p3"><div class="num">${p3}</div><div class="label">Priority P3</div></div>
+      <div class="card p5"><div class="num">${p5}</div><div class="label">Priority P5</div></div>
+    `;
+  }
+
+  // --- Populate filter dropdowns ---
+  function populateFilters(bugs) {
+    const components = [...new Set(bugs.map(b => b.component))].sort();
+    const assignees = [...new Set(bugs.map(b => b.assignee))].sort();
+    const compSel = document.getElementById("filter-component");
+    const asgSel = document.getElementById("filter-assignee");
+    components.forEach(c => { const o = document.createElement("option"); o.value = c; o.textContent = c; compSel.appendChild(o); });
+    assignees.forEach(a => { const o = document.createElement("option"); o.value = a; o.textContent = a.split("@")[0]; asgSel.appendChild(o); });
+  }
+
+  // --- Sorting ---
+  let sortCol = "id", sortDir = -1; // descending by bug id
+
+  function sortBugs(bugs) {
+    return [...bugs].sort((a, b) => {
+      let av = a[sortCol], bv = b[sortCol];
+      if (sortCol === "id") { av = +av; bv = +bv; }
+      else { av = String(av).toLowerCase(); bv = String(bv).toLowerCase(); }
+      if (av < bv) return -1 * sortDir;
+      if (av > bv) return 1 * sortDir;
+      return 0;
+    });
+  }
+
+  function priorityBadge(p) {
+    const cls = { P2: "badge-p2", P3: "badge-p3", P4: "badge-p4", P5: "badge-p5" }[p] || "badge-p5";
+    return `<span class="badge ${cls}">${p}</span>`;
+  }
+
+  // --- Render ---
+  function render() {
+    const prioFilter = document.getElementById("filter-priority").value;
+    const compFilter = document.getElementById("filter-component").value;
+    const asgFilter  = document.getElementById("filter-assignee").value;
+    const search     = document.getElementById("filter-search").value.toLowerCase().trim();
+
+    let filtered = BUGS.filter(b => {
+      if (prioFilter && b.priority !== prioFilter) return false;
+      if (compFilter && b.component !== compFilter) return false;
+      if (asgFilter  && b.assignee  !== asgFilter)  return false;
+      if (search && !b.summary.toLowerCase().includes(search) &&
+                    !String(b.id).includes(search)) return false;
+      return true;
+    });
+
+    buildCards(filtered);
+
+    const sorted = sortBugs(filtered);
+    const tbody = document.getElementById("bug-tbody");
+
+    if (sorted.length === 0) {
+      tbody.innerHTML = "";
+      document.getElementById("empty-state").style.display = "block";
+    } else {
+      document.getElementById("empty-state").style.display = "none";
+      tbody.innerHTML = sorted.map(b => `
+        <tr>
+          <td><a href="${BZ_BASE}${b.id}" target="_blank" rel="noopener">${b.id}</a></td>
+          <td class="summary-text">${escHtml(b.summary)}</td>
+          <td>${priorityBadge(b.priority)}</td>
+          <td class="component-cell">${escHtml(b.component)}</td>
+          <td class="assignee">${escHtml(b.assignee.split("@")[0])}</td>
+          <td class="component-cell">${escHtml(b.product)}</td>
+        </tr>
+      `).join("");
+    }
+
+    // Update sort icons
+    document.querySelectorAll("thead th").forEach(th => {
+      const col = th.dataset.col;
+      const icon = th.querySelector(".sort-icon");
+      th.classList.toggle("sorted", col === sortCol);
+      if (icon) icon.textContent = col === sortCol ? (sortDir === 1 ? " ↑" : " ↓") : "";
+    });
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+
+  // --- Sort on header click ---
+  document.querySelectorAll("thead th[data-col]").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.col;
+      if (sortCol === col) { sortDir *= -1; }
+      else { sortCol = col; sortDir = 1; }
+      render();
+    });
+  });
+
+  // --- Filter listeners ---
+  ["filter-priority","filter-component","filter-assignee","filter-search"].forEach(id => {
+    document.getElementById(id).addEventListener("input", render);
+  });
+
+  // --- Init ---
+  populateFilters(BUGS);
+  render();
+</script>
+
+</body>
+</html>
