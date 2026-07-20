@@ -1,0 +1,42 @@
+name: Weekly Bug Refresh
+
+on:
+  schedule:
+    # Every Monday at 8:00 AM CT (13:00 UTC)
+    - cron: "0 13 * * 1"
+  workflow_dispatch: # allow manual trigger from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch latest bugs & update index.html
+        env:
+          BUGZILLA_API_KEY: ${{ secrets.BUGZILLA_API_KEY }}
+          # Bugzilla uses an IBM internal CA; NODE_TLS_REJECT_UNAUTHORIZED is
+          # set inside the script itself so the warning is intentional.
+        run: node scripts/refresh.js
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes — bug list is already up to date."
+          else
+            git commit -m "chore: weekly bug report refresh $(date -u +%Y-%m-%d)"
+            git push
+          fi
